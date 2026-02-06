@@ -12,6 +12,25 @@ select emp_id, dept_id, salary from cte1 where rnk <= 2
 -----------------------------------------------------------------------------------------
 
 select distinct customer_id from orders where customer_id not in (select orders.customer_id from orders join returns
+
+QUESTION 4 (Deduplication – very common)
+
+Table: events
+
+| event_id | user_id | event_time | event_type |
+
+👉 Write SQL to remove duplicates, keeping only the latest event per user per event_type.
+
+(Assume duplicates are defined by same user_id + event_type)
+
+🔥 QUESTION 5 (Advanced Window – Analytics favorite)
+
+Table: sales
+
+| sale_date | revenue |
+
+👉 Write SQL to return each day where revenue was higher than the average of the previous 7 days
+(exclude current day from the average).
 on orders.order_id = returns.order_id)
 
 -----------------------------------------------------------------------------------------
