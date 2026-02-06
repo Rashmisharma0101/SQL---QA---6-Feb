@@ -1,0 +1,20 @@
+with cte1 as (select user_id, txn_date from transactions order by user_id, txn_date),
+cte2 as (select  user_id, txn_date, lag(txn_date) over (partition by user_id order by txn_date) as prev_date from cte1),
+cte3 as (select  user_id, txn_date, prev_date, lag(prev_date) over (partition by user_id order by txn_date) as secondprev_date from cte2),
+cte4 as (select user_id, txn_date-prev_date as diff1, prev_date-secondprev_date as diff2 from cte3)
+select distinct user_id from cte3 where diff1 = 1 and diff2  =1 
+
+-----------------------------------------------------------------------------------------
+
+with cte1 as (select emp_id, dept_id, salary, dense_rank() over (partition by dept_id order by salary desc) as rnk)
+select emp_id, dept_id, salary from cte1 where rnk <= 2
+
+-----------------------------------------------------------------------------------------
+
+select distinct customer_id from orders where customer_id not in (select orders.customer_id from orders join returns
+on orders.order_id = returns.order_id)
+
+-----------------------------------------------------------------------------------------
+select event_id, user_id, event_time, event_type, row_number() over (partition by user_id, event_type order by event_time)
+
+
