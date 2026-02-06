@@ -1,0 +1,218 @@
+How joins behave with NULL values in join keys
+🔹 INNER JOIN
+
+Rows where the join key is NULL will NOT match
+
+Reason: NULL = NULL is not true in SQL
+
+So any row with NULL in the join column is excluded from the result
+
+➡️ Result: rows with NULL join keys are dropped
+
+🔹 LEFT JOIN
+
+All rows from the left table are kept
+
+If the left table’s join key is NULL, it still appears
+But the columns from the right table will be NULL
+➡️ Result: left table rows stay, matching fails silently
+Interview-ready one-liner
+“NULLs never match in joins because NULL comparisons are unknown,
+so INNER JOIN drops them, while LEFT JOIN preserves left-table rows with NULLs.”
+
+-----------------------------------------------------------------------------------------------
+
+“FULL OUTER JOIN is useful for reconciliation use cases where we need to detect mismatches across two datasets.”
+
+Real-world scenario for FULL OUTER JOIN
+
+Data reconciliation / data quality checks
+
+Example:
+
+Table A: payments_system_1
+
+Table B: payments_system_2
+
+You want to:
+
+Find records present in both systems ✅
+
+Find records missing in system 2 ❌
+
+Find records missing in system 1 ❌
+
+Using a FULL OUTER JOIN:
+
+Matching records → appear once
+
+Records only in A → appear with NULLs from B
+
+Records only in B → appear with NULLs from A
+
+This is extremely common in:
+
+Finance reconciliation
+
+ETL validation
+
+Migration checks
+
+Audit reports
+-----------------------------------------------------------------------------------------------
+“Row explosion usually happens due to many-to-many joins caused by non-unique or incorrect join keys
+-----------------------------------------------------------------------------------------------
+
+What you got right
+
+✅ Condition in ON clause
+
+Affects how rows are matched
+
+Preserves LEFT JOIN behavior
+
+Non-matching rows from left table are kept
+
+✅ Condition in WHERE clause
+
+Acts as a filter after the join
+
+Filters out NULLs from the right table
+
+Effectively turns LEFT JOIN into INNER JOIN
+-----------------------------------------------------------------------------------------------
+What happens if you select a column that is not in GROUP BY and is not aggregated?
+
+Core rule (what usually happens)
+
+❌ In standard SQL, this will throw an error
+
+Reason: SQL doesn’t know which value to pick for that column within the group
+
+This is the default expectation in interviews.
+
+Database-specific behavior (the nuance you mentioned 👍)
+
+Some databases (like MySQL in non-strict mode) may:
+
+Allow the query
+
+Return an arbitrary value from the group
+
+This is not reliable and not portable SQL
+
+Functional dependency (advanced bonus)
+
+You correctly hinted at this 👏
+
+If a column has a functional dependency (one-to-one relationship) with the GROUP BY column
+
+Some engines may allow it
+
+Example: grouping by order_id and selecting order_date
+
+This is advanced SQL knowledge, not expected from everyone.
+
+“In standard SQL, selecting a non-aggregated column not in GROUP BY causes an error, 
+because SQL can’t determine which value to return. Some databases allow it,
+but the result is unreliable unless there’s a functional dependency.
+---------------------------------------------------------------------------------------------
+Are CTEs always materialized?
+
+❌ No, not always.
+
+It depends on the database engine and the query optimizer.
+
+What actually happens
+
+In many modern databases (Postgres, SQL Server, etc.):
+
+CTEs are often inlined (treated like a subquery)
+
+The optimizer decides whether to materialize or not
+
+In some cases (older engines / specific situations):
+
+CTEs are materialized
+
+The result is computed once and stored temporarily
+
+Performance impact
+
+✅ Good when:
+
+The CTE result is reused multiple times
+
+You want to avoid recomputation
+
+❌ Bad when:
+
+The CTE is large
+
+It gets materialized unnecessarily
+
+Filters could have been pushed down earlier
+
+Interview-ready one-liner
+
+“CTEs are not always materialized; modern optimizers inline them, but forced materialization can hurt performance if the dataset is large.”
+
+----------------------------------------------------------------------------------------------------------------
+When to prefer a subquery over a CTE
+
+You’d prefer a subquery when:
+
+The logic is simple and used only once
+
+It’s a small filter or scalar value
+(e.g., comparing against a single aggregate)
+
+Using a CTE would reduce readability instead of improving it
+
+You want the optimizer to inline it naturally without risk of materialization
+
+----------------------------------------------------------------------------------------------------------------
+
+“Yes, CTEs can reference earlier CTEs, which is useful for building stepwise transformations like cleaning,
+aggregation, and business logic.”
+
+----------------------------------------------------------------------------------------------------------------
+
+“Recursive CTEs are used to traverse hierarchical data like org charts or category trees 
+by repeatedly joining a table to itself until a stopping condition is met.”
+----------------------------------------------------------------------------------------------------------------
+1️⃣ For ranking functions (ROW_NUMBER, RANK, DENSE_RANK)
+
+❌ ORDER BY is mandatory
+
+The query will error out
+
+Because ranking makes no sense without an order
+
+2️⃣ For aggregate window functions (SUM, AVG, COUNT)
+
+Query will run
+
+But the function is applied over the entire partition
+
+No running / cumulative behavior
+
+Result is the same value repeated for all rows in the partition
+
+Example conceptually:
+
+Total sales per customer shown on every row
+----------------------------------------------------------------------------------------------------------------
+Remove duplicate records but keep the latest entry per user.
+
+Use a window function
+Partition by user_id
+Order by timestamp / updated_at DESC
+Assign a row number
+Latest record → row_number = 1
+Keep rows where row_number = 1
+Or delete rows where row_number > 1
+
+----------------------------------------------------------------------------------------------------------------
+
+
