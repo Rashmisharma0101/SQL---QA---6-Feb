@@ -1,0 +1,145 @@
+with cte1 as (select user_id, 
+sum(case when status  = 'completed' then amount else 0 as completed_amount),
+sum(case when status  = 'cancelled' then amount else 0 as cancelled_amount)
+group by user_id)
+select user_id, completed_amount, cancelled_amount,  cancelled_amount / (cancelled_amount+ completed_amount) * 100
+as percentage_cancelled from cte1
+
+---------------------------------------------------------------------------------------------
+
+with cte1 as (select user_id, order_id, case when status = 'completed' then 1 else 0 as 'tag'
+from orders)
+select user_id, count(order_id) as order_count, avg(tag) * 100 as percentage_completedorders
+from cte1
+group by user_id
+having avg(tag) * 100 < 50 and 
+having count(order_id) >=3
+
+---------------------------------------------------------------------------------------------
+
+3
+
+---------------------------------------------------------------------------------------------
+with cte1 as (select user_id, amount, order_date from orders where status = 'completed'),
+cte2 as (select user_id, amount, order_date, min(order_date) over (partition by user_id order by order_date) as first_order_date
+from cte1)
+select user_id, first_order_date, amount from user
+where first_order_date = order_date
+
+---------------------------------------------------------------------------------------------
+🏆 RANKING / WINDOW FUNCTIONS
+Q For each department:
+return top 2 highest paid employees
+if salaries tie, both should be included even if it exceeds 2.
+
+with cte1 as (select emp_id, salary, dense_rank() over (partition by dept_id order by salary desc) as rnk
+from emloyees)
+select emp_id, salary from cte1 where rnk <= 2
+
+------------------------------------------------------------------------------------------------
+Q6
+For each user, rank their orders by:
+completed orders first
+higher amount
+earlier order_date
+Return rank per user.
+
+check
+
+------------------------------------------------------------------------------------------------
+Q7 Find users whose latest order amount is greater than their average completed order amount.
+
+with cte1 as ( user_id, avg(case when status = 'completed' then amount else 0) as avg_amount
+group by user_id from users)
+select cte1.user_id, max(users.order_date) as latest_date, users.amount
+from users join cte1 on users.user_id = cte1.user_id
+where users.amount > cte1.avg_amount
+
+------------------------------------------------------------------------------------------------
+
+Q8
+For each department, return:
+highest salary
+2nd highest salary
+difference between them
+⚠️ departments with only 1 employee should still appear.
+
+with cte1 as (select dept_id, salary, dense_rank() over (partition by dept_id order by salary desc) as rnk from employees)
+cte2 as (select distinct dept_id, salary from cte1 where rnk <= 2 order by rnk desc),
+cte3 as (select dept_id, salary, coalesce(lag(salary) over (partition by dept_id order by salary), 0) as secondhighestsalary
+from cte2)
+select dept_id, salary as highestsalary, secondhighestsalary, salary- secondhighestsalary as diff from cte3
+
+------------------------------------------------------------------------------------------------
+ADVANCED JOINS
+events
+user_id	     event_time	     event_type
+101   	2024-01-01 10:00	   view
+101	    2024-01-01 10:05	   add_to_cart
+101	    2024-01-01 10:10	   purchase
+
+From events, find users who:
+viewed
+then added to cart
+then purchased
+in this exact order, but not necessarily consecutively.
+
+select user_id, e1.event_time, e2.event_time, e3.event_time
+from events e1 join events e2
+on e1.event_time  < e2.event_time and e1.user_id = e2.user_id
+join events e3
+on e2.event_time < e3.event_time and e2.user_id = e3.user_id
+where e1.event_type = 'view' and e2.event_type = 'add_to_cart' and e3.event_type = 'purchase'
+
+---------------------------------------------------------------------------------------------
+Q10 Find users who made a purchase without ever having an add_to_cart event before that purchase.
+
+with cte1 as (select distinct user_id from events where user id not in (select distinct user_id from events where event_type = 'add_to_cart'))
+select user_id from cte1 join events on cte1.user_id = events.user_id
+where events.event_type = 'purchase'
+
+------------------------------------------------------------------------------------------------
+
+Q11
+For each user, find the time difference (minutes) between:
+first view
+first purchase
+If no purchase → return NULL.
+
+##################
+
+------------------------------------------------------------------------------------------------
+Given orders table only, find consecutive order streaks
+Example: orders on Jan 1, Jan 2, Jan 4 → streak = 2 days.
+Return max streak per user.
+
+with cte1 as (select  user_id, order_date, row_number() over (partition by user_id order by order_date) as rn
+from orders),
+cte2 as (select  user_id, order_date, order_date - rn as gap from cte1),
+cte3 as (select user_id, count(diff) as streak from cte2
+group by user_id, diff)
+select user_id , max(streak) as max_streak from cte3 group by user_id
+
+------------------------------------------------------------------------------------------------
+Q13
+For each user, detect order behavior change:
+flag = 1 if latest order amount is > 2× their previous order amount
+else 0
+
+with cte1 as (select user_id, order_date, amount, row_number() over(partition by user_id order by order_date desc) as rn
+from orders order by order_date),
+cte2 as (select user_id, order_date, amount, lag(amount) over (partition by user_id order by rn) as latest_amount
+from cte1)
+select user_id, amount, latest_amount, case when latest_amount > 2*amount then 1 else 0 end as 'flagged'
+from cte2
+
+------------------------------------------------------------------------------------------------
+Q14
+Create a query that pivots order status into columns:
+completed_count, cancelled_count, other_count
+
+
+
+
+
+
