@@ -1,0 +1,64 @@
+subqueries
+1. Find users whose spend is above average.
+select name, spend from users where spend > (select avg(spend) from users)
+
+2. Employees earning more than department average.
+select empid, salary, dept_avg from ( select empid, salary, avg(salary) over (partition by dept) as dept_avg
+                                     from employees) t
+where salary > dept_avg
+❌ Window functions → never in WHERE
+-------------------------------------------------------------------------------------------------
+A. Ranking with CASE
+Label top performers per department
+
+with cte1 as (select user, marks, dense_rank() over(order by marks desc) as rnk from users)
+select user, marks, case when rnk <=3 then 'top' else 'other' end as category
+from cte1
+
+-------------------------------------------------------------------------------------------------
+Count orders by status
+select count(case when status = 'completed'  then 1 end) as complete_count,
+  count(case when status = 'cancelled'  then 1 end) as cancel_count
+from orders
+-------------------------------------------------------------------------------------------------
+
+Running totals with CASE
+
+select order_date, sum(case when status= 'completed' then amount else 0 end) over (order by order_date) 
+as running_revenue from orders
+
+------------------------------------------------------------------------------------------------- 
+1. Find the 2nd highest salary per department.
+with cte1  as (select emp_id, dept_id, salary, 
+dense_rank() over (partition by dept_id order by salary desc) as rnk from employees)
+select emp_id, dept_id, salary from cte1 where rnk = 2
+
+------------------------------------------------------------------------------------------------- 
+For each user, label them as:
+High Value → spend > avg spend
+Low Value → otherwise
+
+with cte1  as (select user, spend, avg(spend) over (order by spend) as avg_spend from users)
+select user, spend, case when spend > avg_spend then 'High Value' else 'Low Value' end as label
+from cte1
+
+------------------------------------------------------------------------------------------------- 
+Find users who placed orders on consecutive days.
+
+with cte1 as (select user_id, order_date from users order by user_id, order_date),
+cte2 as (select user_id, ordeR_date, lag(order_date) over (patition by user_id order by order_date) as prev_date
+from cte1)
+select distinct user_id from cte2 where datediff(order_date, prev_date) = 1
+
+------------------------------------------------------------------------------------------------- 
+From an orders table, calculate:
+total_orders
+completed_orders
+completion_rate (%)
+
+select count(order_id) as total_orders,
+count(case when status  = 'cmplet' then 1 else 0 end) as completeed_orders,
+count(order_id) / count(case when status  = 'cmplet' then 1 else 0 end) as completion_rate
+  from orders
+
+
