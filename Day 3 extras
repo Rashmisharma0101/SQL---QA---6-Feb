@@ -1,0 +1,187 @@
+table - adverse_events(device_id, event_date, severity).
+Identify devices where serious adverse events increased by ≥30% month-over-month.
+with cte1 as (select device_id, month(event_date) as  mn , severity from adverse_events),
+cte2 as (sleect device_id, mn, severity, lag(severity) over (partition by device_id order by mn) as prev_deverity
+from cte1),
+cte3 as (select device_id, mn, (severity - prev_severity)/prev_severity * 100 as percentage_increase from cte2)
+select device_id, mn , percentage_increase from cte3 where percentage_increase >= 30
+-----------------------------------------------------------------------------------------------
+2️⃣ Device Failure Rate After Implantation
+
+Scenario:
+implants(device_id, implant_date)
+failures(device_id, failure_date)
+
+Question:
+Find device_ids whose 30-day failure rate is higher than the overall average 30-day failure rate 
+across all devices
+
+with cte1 as (select device_id, implant_date, failure_date
+from implants i left join failure f on i.device_id = f.device_id
+and datediff(implant_date, failure_date) <=30),
+cte2 as (select device_id, case when failure_date is  not null then 1 else 0 end as tag
+from cte1),
+cte3 as (select device_id, avg(tag)*100 as overall_failurerate, avg(tag) over (partition by device_id) as device_failure_rate
+from cte2)
+select device_id from cte3 where device_failure_rate > overall_failurerate
+
+-----------------------------------------------------------------------------------------------
+3️⃣ Surgeon Performance Consistency
+
+Scenario:
+surgeries(surgeon_id, surgery_date, complication_flag)
+
+Question:
+Find surgeons who had complications in 3 or more consecutive surgeries.
+
+Tests:
+
+LAG
+
+Streak detection
+
+Order-aware logic
+
+Hint:
+Compare current vs previous rows, then group streaks
+
+4️⃣ Recall Impact Analysis
+
+Scenario:
+recalls(device_id, recall_date)
+sales(device_id, sale_date)
+
+Question:
+Calculate sales drop percentage in 30 days post-recall vs 30 days pre-recall.
+
+Tests:
+
+Conditional aggregation
+
+Date windows
+
+Business impact thinking
+
+Hint:
+CASE inside SUM + date ranges
+
+5️⃣ Hospital Risk Classification
+
+Scenario:
+hospital_events(hospital_id, event_date, severity)
+
+Question:
+Classify hospitals as:
+
+High Risk → above 90th percentile adverse events
+
+Medium Risk
+
+Low Risk
+
+Tests:
+
+Percentiles
+
+Window functions
+
+CASE logic
+
+Hint:
+PERCENTILE_CONT() over counts
+
+6️⃣ Duplicate Adverse Event Reporting
+
+Scenario:
+MAUDE-style reporting allows duplicates.
+
+reports(report_id, device_id, event_date, patient_id)
+
+Question:
+Detect possible duplicate reports within 7 days for same patient & device.
+
+Tests:
+
+Self-join or LAG
+
+Temporal proximity logic
+
+Hint:
+LAG(event_date) partitioned by patient + device
+
+7️⃣ Batch Quality Drift Detection
+
+Scenario:
+manufacturing_batches(batch_id, production_date, defect_rate)
+
+Question:
+Flag batches where defect rate deviates >2σ from rolling 10-batch average.
+
+Tests:
+
+Rolling window
+
+STDDEV
+
+Statistical thinking
+
+Hint:
+AVG() OVER (...), STDDEV() OVER (...)
+
+8️⃣ Patient Readmission Risk Pattern
+
+Scenario:
+admissions(patient_id, admit_date, discharge_date)
+
+Question:
+Find patients readmitted within 15 days, more than once.
+
+Tests:
+
+LEAD
+
+Date differences
+
+Filtering on repeated patterns
+
+Hint:
+Compare discharge date with next admission
+
+9️⃣ Device Usage Drop by Hospital
+
+Scenario:
+usage_logs(device_id, hospital_id, usage_date)
+
+Question:
+Detect hospitals where usage dropped ≥40% compared to 3-month moving average.
+
+Tests:
+
+Moving averages
+
+Trend analysis
+
+Operational analytics
+
+Hint:
+Windowed AVG over date range
+
+🔟 Compliance SLA Breach Detection (Very Real)
+
+Scenario:
+complaints(complaint_id, received_date, closed_date)
+
+Question:
+Find percentage of complaints not closed within 30 days per quarter.
+
+Tests:
+
+SLA logic
+
+Date arithmetic
+
+Quarterly aggregation
+
+Hint:
+CASE + date diff + GROUP BY quarter
+
