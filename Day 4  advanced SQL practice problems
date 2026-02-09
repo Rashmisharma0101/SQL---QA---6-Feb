@@ -22,6 +22,44 @@ with cte 1 as(select txn_id, user_id, txn_date, amount order by user_id, txn_dat
 cte2 as (select txn_id, user_id, txn_date, amount, row_number() over (patition by user_id order by txn_date desc) as rn from cte1)
 select txn_id, user_id, txn_date, amount from cte2 where rn = 2
 ------------------------------------------------------------------------------------------------------------
+Problem 3: Customers With Increasing Spend (Analytics + LAG)
+Table: monthly_spend
+| customer_id | month | spend |
 
+Task
+Find customers whose spend increased every month (strictly increasing).
+
+with cte1 as (select customer_id, month, spend, lag(spend) over (partition by customer_id order by month) as prev_spend
+from monthly_spend),
+cte2 as (select customer_id, month, spend, spend  - prev_spend as diff from cte1),
+cte3 as(select distinct customer_id from cte2 where diff < 0)
+select distinct customer_id from monthly_spend where customer_id not in cte3
+----------------------------------------------------------------------------------------------
+Problem 4: Highest Revenue Product per Category per Month (JOIN + Ranking)
+
+Tables
+sales
+| sale_id | product_id | sale_date | revenue |
+products
+| product_id | category |
+Task
+For each category and each month, return the top-revenue product.
+
+with cte1 as (select category, product_id, month(sale_date) as  mn, revenue from sales join products
+on sales.product_id = products.product_id),
+cte2 as (select mn, category, product_id, dense_rank() over (partition by mn , category order by revenue desc) as rnk)
+select mn, category, product_id from cte2 where rnk = 1
+
+--------------------------------------------------------------------------------------------------
+Problem 5: Users Who Are Above Department Average (Window Avg + Join)
+Tables
+employees
+| emp_id | emp_name | dept_id | salary |
+Task
+Return employees whose salary is greater than the average salary of their department.
+
+with cte1 as (select emp_id, dept_id, salary, avg(salary) over (partition by dept_id) as dept_avg from employees)
+select emp_id, dept_id, salary from cte1 where salary > dept_avg
+--------------------------------------------------------------------------------------------------------
 
 
