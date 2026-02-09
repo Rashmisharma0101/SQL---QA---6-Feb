@@ -1,0 +1,27 @@
+employees
+emp_id	emp_name	dept_id	salary
+
+departments
+| dept_id | dept_name |
+
+Task
+For each department, return the employee(s) with the highest salary.
+If multiple employees tie for the highest salary, return all.
+
+with cte1 as (Select emp_id, dept_id, salary, dense_rank() over(partition by dept_id order by salary desc) as rnk from employees)
+select emp_id, dept_id, salary from cte1 where rnk = 1
+------------------------------------------------------------------------------------------------------------
+Problem 2: Second Most Recent Transaction per User (Ranking + Filtering)
+
+Table: transactions
+| txn_id | user_id | txn_date | amount |
+
+Task
+For each user, fetch only their second most recent transaction.
+with cte 1 as(select txn_id, user_id, txn_date, amount order by user_id, txn_date desc from transactions),
+cte2 as (select txn_id, user_id, txn_date, amount, row_number() over (patition by user_id order by txn_date desc) as rn from cte1)
+select txn_id, user_id, txn_date, amount from cte2 where rn = 2
+------------------------------------------------------------------------------------------------------------
+
+
+
