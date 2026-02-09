@@ -18,8 +18,8 @@ Table: transactions
 
 Task
 For each user, fetch only their second most recent transaction.
-with cte 1 as(select txn_id, user_id, txn_date, amount order by user_id, txn_date desc from transactions),
-cte2 as (select txn_id, user_id, txn_date, amount, row_number() over (patition by user_id order by txn_date desc) as rn from cte1)
+with cte1 as(select txn_id, user_id, txn_date, amount order by user_id, txn_date desc from transactions),
+cte2 as (select txn_id, user_id, txn_date, amount, row_number() over (partition by user_id order by txn_date desc) as rn from cte1)
 select txn_id, user_id, txn_date, amount from cte2 where rn = 2
 ------------------------------------------------------------------------------------------------------------
 Problem 3: Customers With Increasing Spend (Analytics + LAG)
@@ -30,10 +30,11 @@ Task
 Find customers whose spend increased every month (strictly increasing).
 
 with cte1 as (select customer_id, month, spend, lag(spend) over (partition by customer_id order by month) as prev_spend
-from monthly_spend),
-cte2 as (select customer_id, month, spend, spend  - prev_spend as diff from cte1),
-cte3 as(select distinct customer_id from cte2 where diff < 0)
-select distinct customer_id from monthly_spend where customer_id not in cte3
+from monthly_spend)
+select customer_id
+from cte1
+group by customer_id
+having min(spend - prev_spend) > 0;
 ----------------------------------------------------------------------------------------------
 Problem 4: Highest Revenue Product per Category per Month (JOIN + Ranking)
 
@@ -45,10 +46,28 @@ products
 Task
 For each category and each month, return the top-revenue product.
 
-with cte1 as (select category, product_id, month(sale_date) as  mn, revenue from sales join products
-on sales.product_id = products.product_id),
-cte2 as (select mn, category, product_id, dense_rank() over (partition by mn , category order by revenue desc) as rnk)
-select mn, category, product_id from cte2 where rnk = 1
+with cte1 as (
+  select 
+    p.category,
+    s.product_id,
+    month(s.sale_date) as mn,
+    sum(s.revenue) as total_revenue
+  from sales s
+  join products p
+    on s.product_id = p.product_id
+  group by p.category, s.product_id, month(s.sale_date)
+),
+cte2 as (
+  select *,
+         dense_rank() over (
+           partition by category, mn
+           order by total_revenue desc
+         ) as rnk
+  from cte1
+)
+select mn, category, product_id
+from cte2
+where rnk = 1;
 
 --------------------------------------------------------------------------------------------------
 Problem 5: Users Who Are Above Department Average (Window Avg + Join)
