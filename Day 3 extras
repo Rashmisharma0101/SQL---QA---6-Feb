@@ -27,23 +27,21 @@ select device_id from cte3 where device_failure_rate > overall_failurerate
 
 -----------------------------------------------------------------------------------------------
 3️⃣ Surgeon Performance Consistency
-
 Scenario:
 surgeries(surgeon_id, surgery_date, complication_flag)
 
 Question:
 Find surgeons who had complications in 3 or more consecutive surgeries.
 
-Tests:
+with cte1 as (select surgeon_id, surgery_date, complication_flag from surgeries
+where complication_flag = 1
+order by surgeon_id, surgery_date),
+cte2 as (select surgeon_id, surgery_date, row_number() over (partition by surgeon_id order by surgery_date) as rn
+from cte1),
+cte3 as (select surgeon_id, surgery_date-rn as diff from cte2)
+select surgeon_id from cte2 group by surgeon_id, diff having count(*) >=3
 
-LAG
-
-Streak detection
-
-Order-aware logic
-
-Hint:
-Compare current vs previous rows, then group streaks
+-----------------------------------------------------------------------------------------------
 
 4️⃣ Recall Impact Analysis
 
@@ -54,16 +52,7 @@ sales(device_id, sale_date)
 Question:
 Calculate sales drop percentage in 30 days post-recall vs 30 days pre-recall.
 
-Tests:
 
-Conditional aggregation
-
-Date windows
-
-Business impact thinking
-
-Hint:
-CASE inside SUM + date ranges
 
 5️⃣ Hospital Risk Classification
 
@@ -72,24 +61,19 @@ hospital_events(hospital_id, event_date, severity)
 
 Question:
 Classify hospitals as:
-
 High Risk → above 90th percentile adverse events
-
 Medium Risk
-
 Low Risk
 
-Tests:
+with cte1 as (select hospital_id, avg(severity)*100 as percentage_severity from hospital_events
+group by hospital_id),
+select hospital_id, case when percentage_severity > 90 then 'High Risk'
+case when percentage_severity > 50 and percentage_severity <= 90 then 'Medium Risk'
+else "low Risk"
+end as risk_tag
+from cte1
 
-Percentiles
-
-Window functions
-
-CASE logic
-
-Hint:
-PERCENTILE_CONT() over counts
-
+-------------------------------------------------------------------------------------------------
 6️⃣ Duplicate Adverse Event Reporting
 
 Scenario:
@@ -100,14 +84,6 @@ reports(report_id, device_id, event_date, patient_id)
 Question:
 Detect possible duplicate reports within 7 days for same patient & device.
 
-Tests:
-
-Self-join or LAG
-
-Temporal proximity logic
-
-Hint:
-LAG(event_date) partitioned by patient + device
 
 7️⃣ Batch Quality Drift Detection
 
@@ -117,16 +93,11 @@ manufacturing_batches(batch_id, production_date, defect_rate)
 Question:
 Flag batches where defect rate deviates >2σ from rolling 10-batch average.
 
-Tests:
+with cte1 as (select batch_id, production_date, defect_rate, average(defect_rate) over (order by production_date ROWS BETWEEN 9 PRECEDING AND CURRENT ROW) as rollingbatch
+from manufacturing_batches)
+select batch_id from cte1 where defect_rate > rollingbatch
 
-Rolling window
-
-STDDEV
-
-Statistical thinking
-
-Hint:
-AVG() OVER (...), STDDEV() OVER (...)
+-----------------------------------------------------------------------------------------------------
 
 8️⃣ Patient Readmission Risk Pattern
 
@@ -136,16 +107,13 @@ admissions(patient_id, admit_date, discharge_date)
 Question:
 Find patients readmitted within 15 days, more than once.
 
-Tests:
+select a.patient_id, a.admit_date, b.patient_id, b.admit_date from admissions a join admissions b
+on a.patient_id = b.patient_id and a.admit_date - b.admit_date <= 15
+group by a.patient_id
+having count(*) > 1
 
-LEAD
+----------------------------------------------------------------------------------------------
 
-Date differences
-
-Filtering on repeated patterns
-
-Hint:
-Compare discharge date with next admission
 
 9️⃣ Device Usage Drop by Hospital
 
@@ -155,16 +123,14 @@ usage_logs(device_id, hospital_id, usage_date)
 Question:
 Detect hospitals where usage dropped ≥40% compared to 3-month moving average.
 
-Tests:
 
-Moving averages
 
-Trend analysis
 
-Operational analytics
 
-Hint:
-Windowed AVG over date range
+
+
+
+
 
 🔟 Compliance SLA Breach Detection (Very Real)
 
@@ -174,14 +140,5 @@ complaints(complaint_id, received_date, closed_date)
 Question:
 Find percentage of complaints not closed within 30 days per quarter.
 
-Tests:
 
-SLA logic
-
-Date arithmetic
-
-Quarterly aggregation
-
-Hint:
-CASE + date diff + GROUP BY quarter
 
